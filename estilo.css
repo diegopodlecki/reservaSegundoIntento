@@ -1,0 +1,146 @@
+/* estilos.css
+   CSS personalizado para el sistema de reservas
+   Quitamos jQuery Mobile y usamos Flexbox para organizar los formularios
+*/
+
+/* Fondo general lila */
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #e6ccff; /* lila suave */
+    color: #333;
+}
+
+/* Encabezado */
+header {
+    background: #6a0dad; /* lila más intenso */
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+/* Panel de estado */
+.panel-estado {
+    background: #f0f0f0;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 8px;
+}
+
+/* Mensajes */
+.msg-error { color: #b00020; font-weight: bold; margin: 10px 0; }
+.msg-ok { color: #006400; font-weight: bold; margin: 10px 0; }
+.msg-warning { color: #b8860b; font-weight: bold; margin: 10px 0; }
+
+/* Botón Manual del Usuario */
+.manual-btn {
+    background: #007BFF;
+    color: white;
+    font-weight: bold;
+    padding: 10px 15px;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-block;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+}
+.manual-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 10px rgba(0,0,0,0.4);
+    background: #0056b3;
+}
+
+/* Formulario en dos columnas (espaciado ~0.5cm y medidas uniformes) */
+.form-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5cm; /* separación solicitada entre campos */
+}
+.form-grid .campo {
+    flex: 1 1 calc(50% - 0.5cm);
+    min-width: 240px; /* medidas más uniformes */
+}
+
+/* Responsive: en móviles se apilan */
+@media (max-width: 600px) {
+    .form-grid .campo { flex: 1 1 100%; }
+}
+
+/* Etiquetas y campos con medidas uniformes */
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+/* Inputs y selects: alturas y tipografía uniformes */
+input, select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    width: 100%;
+    height: 40px; /* altura uniforme */
+    font-size: 16px; /* tipografía uniforme */
+    box-sizing: border-box;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+/* Efecto al enfocar (color salmón) */
+input:focus, select:focus {
+    border-color: #fa8072; /* salmón */
+    background-color: #ffe5e0; /* salmón suave */
+    outline: none;
+    box-shadow: 0 0 6px rgba(250,128,114,0.6);
+}
+
+/* Efecto al pasar el mouse (hover salmón suave) */
+input:hover, select:hover {
+    background-color: #fff0f0;
+}
+
+/* Botones generales */
+button {
+    background: #6a0dad; /* lila intenso */
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+}
+button:hover {
+    background: #9b30ff; /* lila más claro */
+    transform: scale(1.05);
+}
+
+/* Lista de reservas */
+ul { list-style: none; padding: 0; }
+li {
+    background: white;
+    margin: 8px 0;
+    padding: 10px;
+    border-radius: 6px;
+    position: relative;
+}
+
+/* Contenedor de acciones admin en la parte inferior */
+.reserva-acciones {
+    margin-top: 10px;
+    text-align: right;
+}
+
+/* Botones de iconos (usando Font Awesome) */
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-left: 8px;
+    font-size: 18px;
+    color: #6a0dad;
+    transition: color 0.3s, transform 0.2s;
+}
+.icon-btn:hover {
+    color: #fa8072; /* salmón al hover */
+    transform: scale(1.2);
+}
