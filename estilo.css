@@ -144,3 +144,37 @@ li {
     color: #fa8072; /* salmón al hover */
     transform: scale(1.2);
 }
+
+/* ====== Manual del Usuario: grid de capturas ====== */
+.screenshot-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5cm; /* coherencia con el espaciado de formularios */
+    margin-top: 10px;
+}
+
+.screenshot-box {
+    background: #fff;
+    border: 2px dashed #9b30ff; /* estilo de caja tipo "dropzone" */
+    border-radius: 10px;
+    padding: 10px;
+}
+.screenshot-box figcaption {
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+.screenshot-placeholder {
+    height: 220px; /* tamaño estándar para sustituir por imagen */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    background: #f7f2ff; /* suave lila para mantener la paleta */
+    border-radius: 8px;
+}
+
+@media (max-width: 800px) {
+    .screenshot-grid {
+        grid-template-columns: 1fr; /* se apilan en pantallas pequeñas */
+    }
+}
