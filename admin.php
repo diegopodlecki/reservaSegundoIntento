@@ -48,16 +48,31 @@ if ($accion === 'insertar') {
     }
     
     $data = [$nombre, $apellido, $dni, $cargo, $fecha, $horario, $espacio, $duracion];
-    if (insertarReserva($data)) {
+    // Verificación explícita de solapamiento con detalle
+    $det = encontrarSolapamientoReserva($fecha, $horario, $duracion, $espacio);
+    if ($det) {
+        $_SESSION['error'] = sprintf(
+            "Conflicto con la reserva #%d (%s, %d min). Se superpone entre %02d:%02d y %02d:%02d.",
+            $det['id'], $det['horario'], $det['duracion'],
+            intdiv($det['inicio_nuevo'], 60), $det['inicio_nuevo'] % 60,
+            intdiv($det['fin_nuevo'], 60), $det['fin_nuevo'] % 60
+        );
+    } else if (insertarReserva($data)) {
         $_SESSION['ok'] = "Reserva creada correctamente.";
     } else {
-        $_SESSION['error'] = "Ya existe una reserva en ese espacio, fecha y horario.";
+        $_SESSION['error'] = "Conflicto: se superpone con otra reserva en el mismo espacio y fecha.";
     }
     header("Location: index.php");
     exit;
 }
 
 if ($accion === 'actualizar') {
+    // Solo administrador puede actualizar
+    if (empty($_SESSION['admin'])) {
+        $_SESSION['error'] = "Acceso restringido: solo administradores pueden actualizar reservas.";
+        header("Location: index.php");
+        exit;
+    }
     // Actualizar reserva existente
     $data = [
         $_POST['nombre'] ?? '',
@@ -79,13 +94,19 @@ if ($accion === 'actualizar') {
     if (actualizarReserva($data)) {
         $_SESSION['ok'] = "Reserva actualizada correctamente.";
     } else {
-        $_SESSION['error'] = "Conflicto: ya existe otra reserva en ese espacio, fecha y horario.";
+        $_SESSION['error'] = "Conflicto: se superpone con otra reserva en el mismo espacio y fecha.";
     }
     header("Location: index.php");
     exit;
 }
 
 if ($accion === 'eliminar') {
+    // Solo administrador puede eliminar
+    if (empty($_SESSION['admin'])) {
+        $_SESSION['error'] = "Acceso restringido: solo administradores pueden eliminar reservas.";
+        header("Location: index.php");
+        exit;
+    }
     // Eliminar reserva
     $id = (int)($_POST['id'] ?? 0);
     if (eliminarReserva($id)) {

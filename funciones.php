@@ -28,6 +28,10 @@ function existeReserva(string $fecha, string $horario, string $espacio, ?int $id
         throw new RuntimeException('Conexión a base de datos no inicializada ($db).');
     }
 
+    $fecha = trim($fecha);
+    $horario = trim($horario);
+    $espacio = trim($espacio);
+
     if ($idExcluir !== null) {
         $stmt = $db->prepare(
             "SELECT COUNT(*) FROM reservas
@@ -43,6 +47,100 @@ function existeReserva(string $fecha, string $horario, string $espacio, ?int $id
     }
 
     return (int)$stmt->fetchColumn() > 0;
+}
+
+/**
+ * Verifica si existe solapamiento (overlap) con otra reserva en el mismo día y espacio.
+ * Compara intervalos calculados con horario (minutos desde 00:00) y duración.
+ * Si $idExcluir se pasa, excluye ese ID (útil para actualizar).
+ */
+function existeSolapamientoReserva(string $fecha, string $horario, int $duracion, string $espacio, ?int $idExcluir = null): bool {
+    global $db;
+
+    if (!$db instanceof PDO) {
+        throw new RuntimeException('Conexión a base de datos no inicializada ($db).');
+    }
+
+    // Normalizar entrada
+    $horario = trim($horario);
+    $espacio = trim($espacio);
+    if ($duracion <= 0) { $duracion = 60; }
+    [$h, $m] = array_map('intval', explode(':', $horario));
+    $inicioNuevo = $h * 60 + $m;
+    $finNuevo = $inicioNuevo + (int)$duracion;
+
+    // Seleccionar reservas del mismo día y espacio (excluyendo id si corresponde)
+    if ($idExcluir !== null) {
+        $stmt = $db->prepare("SELECT id, horario, duracion FROM reservas WHERE fecha = ? AND espacio = ? AND id <> ?");
+        $stmt->execute([trim($fecha), $espacio, $idExcluir]);
+    } else {
+        $stmt = $db->prepare("SELECT id, horario, duracion FROM reservas WHERE fecha = ? AND espacio = ?");
+        $stmt->execute([trim($fecha), $espacio]);
+    }
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        [$hh, $mm] = array_map('intval', explode(':', $row['horario']));
+        $inicioExistente = $hh * 60 + $mm;
+        $durExistente = isset($row['duracion']) ? (int)$row['duracion'] : 60;
+        $finExistente = $inicioExistente + $durExistente;
+
+        // Condición de solapamiento: [inicioNuevo, finNuevo) intersecta [inicioExistente, finExistente)
+        if ($inicioNuevo < $finExistente && $inicioExistente < $finNuevo) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Devuelve detalles del primer solapamiento encontrado con otra reserva
+ * del mismo día y espacio, o null si no hay solape.
+ */
+function encontrarSolapamientoReserva(string $fecha, string $horario, int $duracion, string $espacio, ?int $idExcluir = null): ?array {
+    global $db;
+
+    if (!$db instanceof PDO) {
+        throw new RuntimeException('Conexión a base de datos no inicializada ($db).');
+    }
+
+    $fecha = trim($fecha);
+    $horario = trim($horario);
+    $espacio = trim($espacio);
+    if ($duracion <= 0) { $duracion = 60; }
+
+    [$h, $m] = array_map('intval', explode(':', $horario));
+    $inicioNuevo = $h * 60 + $m;
+    $finNuevo = $inicioNuevo + (int)$duracion;
+
+    if ($idExcluir !== null) {
+        $stmt = $db->prepare("SELECT id, horario, duracion FROM reservas WHERE fecha = ? AND espacio = ? AND id <> ?");
+        $stmt->execute([$fecha, $espacio, $idExcluir]);
+    } else {
+        $stmt = $db->prepare("SELECT id, horario, duracion FROM reservas WHERE fecha = ? AND espacio = ?");
+        $stmt->execute([$fecha, $espacio]);
+    }
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        [$hh, $mm] = array_map('intval', explode(':', $row['horario']));
+        $inicioExistente = $hh * 60 + $mm;
+        $durExistente = isset($row['duracion']) ? (int)$row['duracion'] : 60;
+        $finExistente = $inicioExistente + $durExistente;
+
+        if ($inicioNuevo < $finExistente && $inicioExistente < $finNuevo) {
+            return [
+                'id' => (int)$row['id'],
+                'horario' => $row['horario'],
+                'duracion' => $durExistente,
+                'inicio_existente' => $inicioExistente,
+                'fin_existente' => $finExistente,
+                'inicio_nuevo' => $inicioNuevo,
+                'fin_nuevo' => $finNuevo,
+            ];
+        }
+    }
+
+    return null;
 }
 
 /* ============
@@ -90,6 +188,11 @@ function insertarReserva(array $data): bool {
         return false;
     }
 
+    // Validar solapamiento por duración (mismo día y espacio)
+    if (existeSolapamientoReserva($data[4], $data[5], $data[7], $data[6])) {
+        return false;
+    }
+
     $stmt = $db->prepare("
         INSERT INTO reservas (nombre, apellido, dni, cargo, fecha, horario, espacio, duracion)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -122,6 +225,11 @@ function actualizarReserva(array $data): bool {
 
     // Evitar duplicado distinto del mismo ID
     if (existeReserva($data[4], $data[5], $data[6], $id)) {
+        return false;
+    }
+
+    // Evitar solapamiento con otras reservas del mismo día y espacio
+    if (existeSolapamientoReserva($data[4], $data[5], (int)$data[7], $data[6], $id)) {
         return false;
     }
 
@@ -204,18 +312,54 @@ function contarReservasPorFecha(string $fecha): int {
 }
 
 function detectarConflictos(): array {
+    // Detección avanzada: mismo día y espacio, intervalos que se solapan
     global $db;
 
     if (!$db instanceof PDO) {
         throw new RuntimeException('Conexión a base de datos no inicializada ($db).');
     }
 
-    $sql = "
-        SELECT fecha, horario, espacio, COUNT(*) AS cantidad
-        FROM reservas
-        GROUP BY fecha, horario, espacio
-        HAVING cantidad > 1
-    ";
+    $sql = "SELECT id, fecha, horario, duracion, espacio FROM reservas ORDER BY fecha, espacio, horario";
     $stmt = $db->query($sql);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $reservas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $conflictos = [];
+
+    // Comparar pares dentro del mismo (fecha, espacio)
+    $grupo = [];
+    foreach ($reservas as $r) {
+        $clave = trim($r['fecha']) . '|' . trim($r['espacio']);
+        if (!isset($grupo[$clave])) $grupo[$clave] = [];
+        $grupo[$clave][] = $r;
+    }
+
+    foreach ($grupo as $clave => $items) {
+        $n = count($items);
+        for ($i = 0; $i < $n; $i++) {
+            $a = $items[$i];
+            [$h1, $m1] = array_map('intval', explode(':', $a['horario']));
+            $inicio1 = $h1 * 60 + $m1;
+            $dur1 = isset($a['duracion']) ? (int)$a['duracion'] : 60;
+            $fin1 = $inicio1 + $dur1;
+
+            for ($j = $i + 1; $j < $n; $j++) {
+                $b = $items[$j];
+                [$h2, $m2] = array_map('intval', explode(':', $b['horario']));
+                $inicio2 = $h2 * 60 + $m2;
+                $dur2 = isset($b['duracion']) ? (int)$b['duracion'] : 60;
+                $fin2 = $inicio2 + $dur2;
+
+                if ($inicio1 < $fin2 && $inicio2 < $fin1) {
+                    $conflictos[] = [
+                        'fecha' => $a['fecha'],
+                        'espacio' => $a['espacio'],
+                        'idA' => (int)$a['id'], 'horarioA' => $a['horario'], 'duracionA' => $dur1,
+                        'idB' => (int)$b['id'], 'horarioB' => $b['horario'], 'duracionB' => $dur2,
+                    ];
+                }
+            }
+        }
+    }
+
+    return $conflictos;
 }

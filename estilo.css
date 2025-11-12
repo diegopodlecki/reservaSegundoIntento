@@ -124,6 +124,36 @@ li {
     position: relative;
 }
 
+/* Estado: reserva expirada */
+.expirado {
+    background: #fff5f5; /* leve rojizo */
+    border: 1px solid #f5c2c2;
+}
+.badge-expirado {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 6px;
+    background: #b00020;
+    color: #fff;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+/* Estado: reserva en conflicto */
+.en-conflicto {
+    background: #fff4cc; /* amarillo suave */
+    border-left: 4px solid #f0b429;
+}
+.badge-conflicto {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 6px;
+    background: #f57c00; /* naranja */
+    color: #fff;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
 /* Contenedor de acciones admin en la parte inferior */
 .reserva-acciones {
     margin-top: 10px;
@@ -177,4 +207,40 @@ li {
     .screenshot-grid {
         grid-template-columns: 1fr; /* se apilan en pantallas pequeñas */
     }
+}
+
+/* ====== Panel de Administración: tabla de reservas ====== */
+.tabla-reservas {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.tabla-reservas th, .tabla-reservas td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+.tabla-reservas thead th {
+    background-color: #f4f6f8;
+}
+
+/* ====== Panel de Conflictos ====== */
+.conflict-panel {
+    background: #fff;
+    border-left: 6px solid #b00020; /* rojo para resaltar alertas */
+    padding: 12px;
+    border-radius: 8px;
+    margin: 12px 0;
+}
+.conflict-panel h4 { margin: 0 0 8px 0; }
+.conflict-item { margin: 8px 0; }
+.conflict-suggestion { color: #b8860b; margin-top: 4px; }
+.conflict-actions { margin-top: 6px; }
+
+/* Resaltado de filas con conflicto en la tabla de administración */
+.row-conflict td {
+    background: #fff8e1; /* amarillo suave */
 }

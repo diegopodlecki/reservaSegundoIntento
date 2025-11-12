@@ -13,6 +13,32 @@ try {
     $hoy = date("Y-m-d");
     $reservasHoy = contarReservasPorFecha($hoy);
     $conflictos = detectarConflictos();
+    // Construir conjunto de IDs involucrados en conflictos
+    $idsConflicto = [];
+    foreach ($conflictos as $c) {
+        if (isset($c['idA'])) { $idsConflicto[(int)$c['idA']] = true; }
+        if (isset($c['idB'])) { $idsConflicto[(int)$c['idB']] = true; }
+    }
+    // Reordenar: primero reservas pendientes (no expiradas), luego expiradas
+    $pendientes = [];
+    $expiradasList = [];
+    foreach ($reservas as $rr) {
+        $durTmp = isset($rr['duracion']) ? (int)$rr['duracion'] : 60;
+        $inicioTmp = strtotime($rr['fecha'] . ' ' . $rr['horario']);
+        $finTmp = $inicioTmp + ($durTmp * 60);
+        if (time() > $finTmp) {
+            $expiradasList[] = $rr;
+        } else {
+            $pendientes[] = $rr;
+        }
+    }
+    $reservas = array_merge($pendientes, $expiradasList);
+    // Construir conjunto de IDs involucrados en conflictos para resaltar en el listado
+    $idsConflicto = [];
+    foreach ($conflictos as $c) {
+        if (isset($c['idA'])) { $idsConflicto[(int)$c['idA']] = true; }
+        if (isset($c['idB'])) { $idsConflicto[(int)$c['idB']] = true; }
+    }
 } catch (Exception $e) {
     // Si hay error de BD, mostramos mensaje y evitamos romper la vista
     $reservas = [];
@@ -27,7 +53,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <title>Sistema de Reservas</title>
-    <link rel="stylesheet" href="estilo.css"><!-- estilos visuales del sistema -->
+    <link rel="stylesheet" href="estilo.css?v=2"><!-- estilos visuales del sistema -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -126,10 +152,24 @@ try {
 <h3>Reservas realizadas</h3>
 <ul>
     <?php foreach ($reservas as $r): ?>
-        <li>
+        <?php
+            // Calcular si la reserva ya expiró (fecha+hora+duración < ahora)
+            $dur = isset($r['duracion']) ? (int)$r['duracion'] : 60;
+            $inicioTs = strtotime($r['fecha'] . ' ' . $r['horario']);
+            $finTs = $inicioTs + ($dur * 60);
+            $expirada = (time() > $finTs);
+        ?>
+        <li class="<?= $expirada ? 'expirado' : '' ?> <?= isset($idsConflicto[(int)$r['id']]) ? 'en-conflicto' : '' ?>">
             <?= htmlspecialchars($r['nombre'].' '.$r['apellido']) ?>
             — <?= htmlspecialchars($r['espacio']) ?>
-            (<?= htmlspecialchars($r['fecha'].' '.$r['horario']) ?>)
+            (<?= htmlspecialchars(date('d/m/Y', strtotime($r['fecha'])) . ' ' . $r['horario']) ?>, <?= (int)$dur ?> min)
+            <?php if ($expirada): ?>
+                <span class="badge-expirado">Expiró</span>
+            <?php endif; ?>
+
+            <?php if (isset($idsConflicto[(int)$r['id']])): ?>
+                <span class="badge-conflicto">Conflicto</span>
+            <?php endif; ?>
 
             <?php if (!empty($_SESSION['admin'])): ?>
                 <div class="reserva-acciones">
